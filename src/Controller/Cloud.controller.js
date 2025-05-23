@@ -9,7 +9,9 @@ export const handleUpload = (req, res) => {
   if (req.method === 'OPTIONS') return res.sendStatus(200);
 
   const apiKey = req.headers['genta'];
-  if (apiKey !== 'Genta@456') return res.status(401).json({ status: 'Unauthorized', message: '-' });
+  if (apiKey !== 'Genta@456') {
+    return res.status(401).json({ status: 'Unauthorized', message: '-' });
+  }
 
   const singleFile = req.files['file']?.[0];
   const multiFiles = req.files['file[]'] || [];
@@ -22,13 +24,25 @@ export const handleUpload = (req, res) => {
     const newName = generateUniqueFilename(uploadDir, file.originalname);
     const newPath = path.join(uploadDir, newName);
     fs.renameSync(file.path, newPath);
-    return { status: 'uploaded', file_url: baseURL + newPath };
+    return baseURL + newPath;
   };
 
   try {
-    const result = [];
-    if (singleFile) result.push(processFile(singleFile));
-    if (multiFiles.length > 0) multiFiles.forEach(f => result.push(processFile(f)));
+    if (singleFile && multiFiles.length === 0) {
+      // 🔥 Kalo cuma satu file (field `file`)
+      const url = processFile(singleFile);
+      return res.json({
+        status: 'success',
+        message: 'File berhasil diupload',
+        file_url: url,
+      });
+    }
+
+    // 🔥 Kalo banyak file (field `file[]`)
+    const result = multiFiles.map(f => ({
+      status: 'uploaded',
+      file_url: processFile(f),
+    }));
 
     return res.json({
       status: 'success',
